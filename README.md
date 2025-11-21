@@ -131,7 +131,7 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
     
     # Fix for iOS simulator support
-    # The libOpenInstallSDK static library only contains device architectures
+    # The libOpenInstallSDK static library only contains arm64 slice for iOS devices (not simulators)
     # Exclude arm64 for ALL simulators (forces x86_64 architecture)
     # On Apple Silicon Macs, simulator will run via Rosetta translation
     target.build_configurations.each do |config|
@@ -142,9 +142,10 @@ end
 ```
 
 这个配置：
-- 排除 iOS 模拟器的 arm64 架构，因为 libOpenInstallSDK 静态库只包含设备架构
-- 允许在 Intel Mac 的 x86_64 模拟器上运行应用
-- **注意**：在 Apple Silicon (M1/M2) Mac 上，需要使用 Rosetta 模式运行模拟器
+- 排除 iOS 模拟器的 arm64 架构，因为 libOpenInstallSDK 静态库只包含 iOS 设备的 arm64 架构（不包含模拟器架构）
+- 强制所有模拟器使用 x86_64 架构
+- 允许在 Intel Mac 上原生运行 x86_64 模拟器
+- **注意**：在 Apple Silicon (M1/M2) Mac 上，模拟器将通过 Rosetta 2 以 x86_64 模式运行
 
 配置完成后，执行 `pod install` 即可在模拟器上运行应用。
 

@@ -41,7 +41,7 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
     
     # Fix for iOS simulator support
-    # The libOpenInstallSDK static library only contains device architectures
+    # The libOpenInstallSDK static library only contains arm64 slice for iOS devices (not simulators)
     # Exclude arm64 for ALL simulators (forces x86_64 architecture)
     # On Apple Silicon Macs, simulator will run via Rosetta translation
     target.build_configurations.each do |config|
