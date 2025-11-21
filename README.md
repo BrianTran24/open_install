@@ -130,31 +130,20 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     
-    # Fix for iOS simulator support with static frameworks and XCFrameworks
+    # Fix for iOS simulator support
+    # The libOpenInstallSDK static library only contains device architectures
+    # We need to exclude arm64 for simulator to allow running on x86_64 (Intel) simulators
     target.build_configurations.each do |config|
-      # Enable building for distribution to support both device and simulator
-      config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
-      
-      # Ensure proper architecture support for simulators
-      # Remove any existing EXCLUDED_ARCHS to allow arm64 simulator on Apple Silicon
-      config.build_settings.delete('EXCLUDED_ARCHS[sdk=iphonesimulator*]')
-      
-      # For targets that don't support arm64 simulator, we exclude it only on Intel Macs
-      # This is automatically handled by checking if we're on Apple Silicon
-      # Use Ruby's built-in RbConfig instead of shell command for better security
-      if RbConfig::CONFIG['host_cpu'] != 'arm64'
-        # On Intel Macs, exclude arm64 for simulator to prevent linking issues
-        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
-      end
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
     end
   end
 end
 ```
 
 这个配置：
-- 在 Apple Silicon (M1/M2) Mac 上启用 arm64 模拟器支持
-- 在 Intel Mac 上排除 arm64 架构以防止链接错误
-- 启用 `BUILD_LIBRARY_FOR_DISTRIBUTION` 以支持设备和模拟器构建
+- 排除 iOS 模拟器的 arm64 架构，因为 libOpenInstallSDK 静态库只包含设备架构
+- 允许在 Intel Mac 的 x86_64 模拟器上运行应用
+- **注意**：在 Apple Silicon (M1/M2) Mac 上，需要使用 Rosetta 模式运行模拟器
 
 配置完成后，执行 `pod install` 即可在模拟器上运行应用。
 
