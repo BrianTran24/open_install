@@ -42,7 +42,8 @@ post_install do |installer|
     
     # Fix for iOS simulator support
     # The libOpenInstallSDK static library only contains device architectures
-    # We need to exclude arm64 for simulator to allow running on x86_64 (Intel) simulators
+    # Exclude arm64 for ALL simulators (forces x86_64 architecture)
+    # On Apple Silicon Macs, simulator will run via Rosetta translation
     target.build_configurations.each do |config|
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
     end
