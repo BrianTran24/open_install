@@ -51,7 +51,8 @@ post_install do |installer|
       
       # For targets that don't support arm64 simulator, we exclude it only on Intel Macs
       # This is automatically handled by checking if we're on Apple Silicon
-      unless `uname -m`.strip == 'arm64'
+      # Use Ruby's built-in RbConfig instead of shell command for better security
+      if RbConfig::CONFIG['host_cpu'] != 'arm64'
         # On Intel Macs, exclude arm64 for simulator to prevent linking issues
         config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
       end
