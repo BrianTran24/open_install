@@ -121,6 +121,42 @@ Xcode中快速添加：
 
 如果拉起无法获取到参数，可能是因为方法被其它插件覆盖导致（openinstall插件不会覆盖其它插件），可以修改其它插件通用链接delegate回调`..hanldeOpenURL..`方法`return NO;`来解决，可参考OpeninstallFlutterPlugin.m文件相关内容。 
 
+#### iOS 模拟器支持
+
+为了在 iOS 模拟器上运行应用，需要在项目的 `ios/Podfile` 文件中配置架构支持。在 `post_install` 钩子中添加以下代码：
+
+``` ruby
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    
+    # Fix for iOS simulator support with static frameworks and XCFrameworks
+    target.build_configurations.each do |config|
+      # Enable building for distribution to support both device and simulator
+      config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
+      
+      # Ensure proper architecture support for simulators
+      # Remove any existing EXCLUDED_ARCHS to allow arm64 simulator on Apple Silicon
+      config.build_settings.delete('EXCLUDED_ARCHS[sdk=iphonesimulator*]')
+      
+      # For targets that don't support arm64 simulator, we exclude it only on Intel Macs
+      # This is automatically handled by checking if we're on Apple Silicon
+      unless `uname -m`.strip == 'arm64'
+        # On Intel Macs, exclude arm64 for simulator to prevent linking issues
+        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+      end
+    end
+  end
+end
+```
+
+这个配置：
+- 在 Apple Silicon (M1/M2) Mac 上启用 arm64 模拟器支持
+- 在 Intel Mac 上排除 arm64 架构以防止链接错误
+- 启用 `BUILD_LIBRARY_FOR_DISTRIBUTION` 以支持设备和模拟器构建
+
+配置完成后，执行 `pod install` 即可在模拟器上运行应用。
+
 ## 三、使用
 
 ### 初始化

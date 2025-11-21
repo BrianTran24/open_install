@@ -39,5 +39,22 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    
+    # Fix for iOS simulator support with static frameworks and XCFrameworks
+    target.build_configurations.each do |config|
+      # Enable building for distribution to support both device and simulator
+      config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
+      
+      # Ensure proper architecture support for simulators
+      # Remove any existing EXCLUDED_ARCHS to allow arm64 simulator on Apple Silicon
+      config.build_settings.delete('EXCLUDED_ARCHS[sdk=iphonesimulator*]')
+      
+      # For targets that don't support arm64 simulator, we exclude it only on Intel Macs
+      # This is automatically handled by checking if we're on Apple Silicon
+      unless `uname -m`.strip == 'arm64'
+        # On Intel Macs, exclude arm64 for simulator to prevent linking issues
+        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+      end
+    end
   end
 end
