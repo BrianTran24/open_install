@@ -31,13 +31,13 @@ if [[ "${SDK_NAME}" == *"simulator"* ]] || [[ "${PLATFORM_NAME}" == *"simulator"
     cd "${SRCROOT}"
     
     # Check if we need to re-run pod install
-    if [ ! -f ".simulator_pods_installed" ]; then
+    if [ ! -f "${SRCROOT}/.simulator_pods_installed" ]; then
         echo "📦 Running pod install with SKIP_OPENINSTALL_SDK=1..."
         export SKIP_OPENINSTALL_SDK=1
         pod install
-        touch ".simulator_pods_installed"
+        touch "${SRCROOT}/.simulator_pods_installed"
         # Remove device marker if exists
-        rm -f ".device_pods_installed"
+        rm -f "${SRCROOT}/.device_pods_installed"
         echo "✅ Pods installed for simulator"
     else
         echo "✅ Simulator pods already installed"
@@ -49,13 +49,13 @@ else
     cd "${SRCROOT}"
     
     # Check if we need to re-run pod install
-    if [ ! -f ".device_pods_installed" ]; then
+    if [ ! -f "${SRCROOT}/.device_pods_installed" ]; then
         echo "📦 Running pod install with full SDK..."
-        unset SKIP_OPENINSTALL_SDK
-        pod install
-        touch ".device_pods_installed"
+        # Ensure SKIP_OPENINSTALL_SDK is not set for device builds
+        env -u SKIP_OPENINSTALL_SDK pod install
+        touch "${SRCROOT}/.device_pods_installed"
         # Remove simulator marker if exists
-        rm -f ".simulator_pods_installed"
+        rm -f "${SRCROOT}/.simulator_pods_installed"
         echo "✅ Pods installed for device"
     else
         echo "✅ Device pods already installed"

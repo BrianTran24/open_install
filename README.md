@@ -145,13 +145,14 @@ SKIP_OPENINSTALL_SDK=1 pod install
 
 如果你希望 Xcode 自动检测模拟器/真机并运行相应的 pod install，可以配置 Xcode 的 Pre-action：
 
-1. 打开 Xcode
-2. 前往 Product > Scheme > Edit Scheme
-3. 在左侧边栏选择 "Build"
-4. 点击底部的 "Pre-actions"
-5. 点击 "+" 并选择 "New Run Script Action"
-6. 设置 "Provide build settings from" 为你的 target
-7. 粘贴以下脚本内容：
+1. 将 `example/ios/scripts/xcode_pre_build.sh` 脚本复制到你的项目的 `ios/scripts/` 目录下
+2. 打开 Xcode
+3. 前往 Product > Scheme > Edit Scheme
+4. 在左侧边栏选择 "Build"
+5. 点击底部的 "Pre-actions"
+6. 点击 "+" 并选择 "New Run Script Action"
+7. 设置 "Provide build settings from" 为你的 target
+8. 粘贴以下脚本内容：
 
 ```bash
 source "${SRCROOT}/scripts/xcode_pre_build.sh"
