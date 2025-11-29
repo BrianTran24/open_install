@@ -1,38 +1,99 @@
+#import <TargetConditionals.h>
+#import <TargetConditionals.h>
 #import <UIKit/UIKit.h>
 
 #import "OpeninstallFlutterPlugin.h"
 
+#if TARGET_OS_SIMULATOR
+
+// Simulator stub – NO OpenInstallSDK, NO OpenInstallDelegate
+
+@interface OpeninstallFlutterPlugin ()
+@property (strong, nonatomic) FlutterMethodChannel *flutterMethodChannel;
+@end
+
+@implementation OpeninstallFlutterPlugin
+
++ (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
+    FlutterMethodChannel *channel = [FlutterMethodChannel
+                                     methodChannelWithName:@"openinstall_flutter_plugin"
+                                     binaryMessenger:[registrar messenger]];
+    OpeninstallFlutterPlugin *instance = [[OpeninstallFlutterPlugin alloc] init];
+    [registrar addApplicationDelegate:instance];
+    instance.flutterMethodChannel = channel;
+    [registrar addMethodCallDelegate:instance channel:channel];
+}
+
+- (instancetype)init {
+    self = [super init];
+    return self;
+}
+
+- (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    if ([call.method isEqualToString:@"getInstall"]) {
+        NSDictionary *dict = @{
+            @"channelCode" : @"",
+            @"bindData"    : @"",
+            @"shouldRetry" : @(NO)
+        };
+        result(dict);
+    } else if ([call.method isEqualToString:@"getOpid"]) {
+        result(@(""));
+    } else {
+        // no-op for other methods on simulator
+        result(nil);
+    }
+}
+
++ (BOOL)handLinkURL:(NSURL *)url {
+    return NO;
+}
+
++ (BOOL)continueUserActivity:(NSUserActivity *)userActivity {
+    return NO;
+}
+
++ (void)setUserActivityAndScheme:(NSDictionary *)launchOptions {
+    // no-op
+}
+
+@end
+#pragma mark - Real device implementation (with OpenInstallSDK)
+
+#else  // TARGET_OS_SIMULATOR
+
 #import "OpenInstallSDK.h"
 #import <AdSupport/AdSupport.h>
-#import <AppTrackingTransparency/AppTrackingTransparency.h>//苹果新隐私政策
-#import <AdServices/AAAttribution.h>//ASA
+#import <AppTrackingTransparency/AppTrackingTransparency.h>
+#import <AdServices/AAAttribution.h> // ASA
 
 typedef NS_ENUM(NSUInteger, OpenInstallSDKPluginMethod) {
-    OpenInstallSDKMethodInit,
-    OpenInstallSDKMethodGetInstallParams,
-    OpenInstallSDKMethodReportRegister,
-    OpenInstallSDKMethodReportEffectPoint,
-    OpenInstallSDKMethodConfig,
-    OpenInstallSDKMethodReportShare,
-    OpenInstallSDKMethodGetOpid
+OpenInstallSDKMethodInit,
+OpenInstallSDKMethodGetInstallParams,
+OpenInstallSDKMethodReportRegister,
+OpenInstallSDKMethodReportEffectPoint,
+OpenInstallSDKMethodConfig,
+OpenInstallSDKMethodReportShare,
+OpenInstallSDKMethodGetOpid
 };
 
 @interface OpeninstallFlutterPlugin () <OpenInstallDelegate>
 @property (strong, nonatomic, readonly) NSDictionary *methodDict;
 @property (strong, nonatomic) FlutterMethodChannel * flutterMethodChannel;
 @property (assign, nonatomic) BOOL isOnWakeup;
-@property (copy, nonatomic)NSDictionary *cacheDic;
+@property (copy, nonatomic) NSDictionary *cacheDic;
 
-@property (assign, nonatomic) BOOL adEnable;//必要，是否开启广告平台统计功能
-@property (assign, nonatomic) BOOL ASAEnable;//必要，是否开启苹果ASA功能
-@property (assign, nonatomic) BOOL ASADebug;//可选，ASA测试debug模式，注意：正式环境中请务必关闭
-@property (copy, nonatomic) NSString *idfaStr;//可选，通过其它插件获取的idfa字符串一般格式为xxxx-xxxx-xxxx-xxxx
+@property (assign, nonatomic) BOOL adEnable;
+@property (assign, nonatomic) BOOL ASAEnable;
+@property (assign, nonatomic) BOOL ASADebug;
+@property (copy, nonatomic) NSString *idfaStr;
 
 @end
 
 static FlutterMethodChannel * FLUTTER_METHOD_CHANNEL;
 
 @implementation OpeninstallFlutterPlugin
+
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
     FlutterMethodChannel * channel = [FlutterMethodChannel methodChannelWithName:@"openinstall_flutter_plugin" binaryMessenger:[registrar messenger]];
     OpeninstallFlutterPlugin* instance = [[OpeninstallFlutterPlugin alloc] init];
@@ -51,26 +112,25 @@ static FlutterMethodChannel * FLUTTER_METHOD_CHANNEL;
 
 - (void)initData {
     _methodDict = @{
-                    @"registerWakeup"         :      @(OpenInstallSDKMethodInit),
-                    @"getInstall"             :      @(OpenInstallSDKMethodGetInstallParams),
-                    @"reportRegister"         :      @(OpenInstallSDKMethodReportRegister),
-                    @"reportEffectPoint"      :      @(OpenInstallSDKMethodReportEffectPoint),
-                    @"config"                 :      @(OpenInstallSDKMethodConfig),
-                    @"reportShare"            :      @(OpenInstallSDKMethodReportShare),
-                    @"getOpid"                :      @(OpenInstallSDKMethodGetOpid)
-                    };
+            @"registerWakeup"    : @(OpenInstallSDKMethodInit),
+            @"getInstall"        : @(OpenInstallSDKMethodGetInstallParams),
+            @"reportRegister"    : @(OpenInstallSDKMethodReportRegister),
+            @"reportEffectPoint" : @(OpenInstallSDKMethodReportEffectPoint),
+            @"config"            : @(OpenInstallSDKMethodConfig),
+            @"reportShare"       : @(OpenInstallSDKMethodReportShare),
+            @"getOpid"           : @(OpenInstallSDKMethodGetOpid)
+    };
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSNumber *methodType = self.methodDict[call.method];
     if (methodType) {
         switch (methodType.intValue) {
-            case OpenInstallSDKMethodInit:
-            {
+            case OpenInstallSDKMethodInit: {
                 [self initOpenInstall];
-                
+
                 NSDictionary *dict;
-                @synchronized(self){
+                @synchronized(self) {
                     if (self.cacheDic) {
                         dict = [self.cacheDic copy];
                     }
@@ -82,8 +142,7 @@ static FlutterMethodChannel * FLUTTER_METHOD_CHANNEL;
                 }
                 break;
             }
-            case OpenInstallSDKMethodGetInstallParams:
-            {
+            case OpenInstallSDKMethodGetInstallParams: {
                 NSNumber *timeNum = (NSNumber *) call.arguments[@"timeout"];
                 double time = [timeNum doubleValue];
                 if (time <= 10) {
@@ -94,62 +153,57 @@ static FlutterMethodChannel * FLUTTER_METHOD_CHANNEL;
                 }];
                 break;
             }
-            case OpenInstallSDKMethodReportRegister:
-            {
+            case OpenInstallSDKMethodReportRegister: {
                 [OpenInstallSDK reportRegister];
                 break;
             }
-            case OpenInstallSDKMethodReportEffectPoint:
-            {
+            case OpenInstallSDKMethodReportEffectPoint: {
                 NSDictionary * args = call.arguments;
                 NSNumber * pointValue = (NSNumber *) args[@"pointValue"];
                 if ([args.allKeys containsObject:@"extras"]) {
-                    [[OpenInstallSDK defaultManager] reportEffectPoint:(NSString *)args[@"pointId"] effectValue:[pointValue longValue] effectDictionary:(NSDictionary *)args[@"extras"]];
-                }else{
-                    [[OpenInstallSDK defaultManager] reportEffectPoint:(NSString *)args[@"pointId"] effectValue:[pointValue longValue]];
+                    [[OpenInstallSDK defaultManager] reportEffectPoint:(NSString *)args[@"pointId"]
+                                                           effectValue:[pointValue longValue]
+                                                      effectDictionary:(NSDictionary *)args[@"extras"]];
+                } else {
+                    [[OpenInstallSDK defaultManager] reportEffectPoint:(NSString *)args[@"pointId"]
+                                                           effectValue:[pointValue longValue]];
                 }
                 break;
             }
-            case OpenInstallSDKMethodConfig:
-            {
+            case OpenInstallSDKMethodConfig: {
                 NSDictionary * args = call.arguments;
-                self.adEnable = [args[@"adEnable"] boolValue];
+                self.adEnable  = [args[@"adEnable"] boolValue];
                 self.ASAEnable = [args[@"ASAEnable"] boolValue];
-                self.idfaStr = args[@"idfaStr"];
-                self.ASADebug = [args[@"ASADebug"] boolValue];
-                
+                self.idfaStr   = args[@"idfaStr"];
+                self.ASADebug  = [args[@"ASADebug"] boolValue];
                 break;
             }
-            case OpenInstallSDKMethodReportShare:
-            {
+            case OpenInstallSDKMethodReportShare: {
                 NSDictionary * args = call.arguments;
-                [[OpenInstallSDK defaultManager] reportShareParametersWithShareCode:(NSString *)args[@"shareCode"] sharePlatform:(NSString *)args[@"platform"] completed:^(NSInteger code, NSString * _Nullable msg) {
-                    BOOL shouldRetry = NO;
-                    if (code==-1) {
-                        shouldRetry = YES;
-                    }
-                    NSDictionary * resultDic = @{@"shouldRetry":@(shouldRetry),@"message":msg};
-                    result(resultDic);
-                }];
+                [[OpenInstallSDK defaultManager] reportShareParametersWithShareCode:(NSString *)args[@"shareCode"]
+                                                                      sharePlatform:(NSString *)args[@"platform"]
+                                                                          completed:^(NSInteger code, NSString * _Nullable msg) {
+                                                                              BOOL shouldRetry = (code == -1);
+                                                                              NSDictionary * resultDic = @{@"shouldRetry":@(shouldRetry), @"message":msg ?: @""};
+                                                                              result(resultDic);
+                                                                          }];
                 break;
             }
-            case OpenInstallSDKMethodGetOpid:
-            {
+            case OpenInstallSDKMethodGetOpid: {
                 NSString *opid = [[OpenInstallSDK defaultManager] getOpId];
                 result(opid);
                 break;
             }
             default:
-            {
                 break;
-            }
         }
     } else {
         result(FlutterMethodNotImplemented);
     }
 }
 
-#pragma mark - Openinstall Notify Flutter Mehtod
+#pragma mark - Openinstall Notify Flutter Method
+
 - (void)installParamsResponse:(OpeninstallData *) appData {
     NSDictionary *args = [self convertInstallArguments:appData];
     [self.flutterMethodChannel invokeMethod:@"onInstallNotification" arguments:args];
@@ -159,36 +213,36 @@ static FlutterMethodChannel * FLUTTER_METHOD_CHANNEL;
     NSDictionary *args = [self convertInstallArguments:appData];
     if (self.isOnWakeup) {
         [self.flutterMethodChannel invokeMethod:@"onWakeupNotification" arguments:args];
-    }else{
-        @synchronized(self){
-            self.cacheDic = [[NSDictionary alloc]init];
+    } else {
+        @synchronized(self) {
+            self.cacheDic = [[NSDictionary alloc] init];
             self.cacheDic = args;
         }
     }
 }
 
 - (NSDictionary *)convertInstallArguments:(OpeninstallData *) appData {
-    NSString *channelCode = @"";
+    NSString *channelCode = appData.channelCode ?: @"";
     NSString *bindData = @"";
-    if (appData.channelCode != nil) {
-        channelCode = appData.channelCode;
-    }
     if (appData.data != nil) {
         bindData = [self jsonStringWithObject:appData.data];
     }
-    BOOL shouldRetry = NO;
-    if (appData.opCode==OPCode_timeout) {
-        shouldRetry = YES;
-    }
-    NSDictionary * dict = @{@"channelCode":channelCode,@"bindData":bindData,@"shouldRetry":@(shouldRetry)};
+    BOOL shouldRetry = (appData.opCode == OPCode_timeout);
+    NSDictionary * dict = @{
+            @"channelCode": channelCode,
+            @"bindData":    bindData,
+            @"shouldRetry": @(shouldRetry)
+    };
     return dict;
 }
 
 - (NSString *)jsonStringWithObject:(id)jsonObject {
     id arguments = (jsonObject == nil ? [NSNull null] : jsonObject);
-    NSArray* argumentsWrappedInArr = [NSArray arrayWithObject:arguments];
-    NSString* argumentsJSON = [self cp_JSONString:argumentsWrappedInArr];
-    if (argumentsJSON.length>2) {argumentsJSON = [argumentsJSON substringWithRange:NSMakeRange(1, [argumentsJSON length] - 2)];}
+    NSArray *argumentsWrappedInArr = @[arguments];
+    NSString *argumentsJSON = [self cp_JSONString:argumentsWrappedInArr];
+    if (argumentsJSON.length > 2) {
+        argumentsJSON = [argumentsJSON substringWithRange:NSMakeRange(1, argumentsJSON.length - 2)];
+    }
     return argumentsJSON;
 }
 
@@ -196,7 +250,7 @@ static FlutterMethodChannel * FLUTTER_METHOD_CHANNEL;
     NSError *error = nil;
     NSData *jsonData = [NSJSONSerialization dataWithJSONObject:array options:0 error:&error];
     NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-    if ([jsonString length] > 0 && error == nil){
+    if (jsonString.length > 0 && error == nil) {
         return jsonString;
     } else {
         return @"";
@@ -204,8 +258,8 @@ static FlutterMethodChannel * FLUTTER_METHOD_CHANNEL;
 }
 
 #pragma mark - Openinstall API
-//通过OpenInstall获取已经安装App被唤醒时的参数（如果是通过渠道页面唤醒App时，会返回渠道编号）
--(void)getWakeUpParams:(OpeninstallData *) appData{
+
+- (void)getWakeUpParams:(OpeninstallData *)appData {
     [self wakeUpParamsResponse:appData];
 }
 
@@ -217,25 +271,23 @@ static FlutterMethodChannel * FLUTTER_METHOD_CHANNEL;
     return [OpenInstallSDK continueUserActivity:userActivity];
 }
 
-- (void)initOpenInstall{
-    //iOS14.5苹果隐私政策正式启用
+- (void)initOpenInstall {
     if (self.adEnable) {
         if (@available(iOS 14, *)) {
             [ATTrackingManager requestTrackingAuthorizationWithCompletionHandler:^(ATTrackingManagerAuthorizationStatus status) {
                 [self OpInit];
             }];
-        }else{
+        } else {
             [self OpInit];
         }
-    }else{
+    } else {
         [self OpInit];
     }
-    
 }
 
-- (void)OpInit{
-    //ASA广告归因
-    NSMutableDictionary *config = [[NSMutableDictionary alloc]init];
+- (void)OpInit {
+    NSMutableDictionary *config = [[NSMutableDictionary alloc] init];
+
     if (@available(iOS 14.3, *)) {
         NSError *error;
         NSString *token = [AAAttribution attributionTokenWithError:&error];
@@ -246,31 +298,30 @@ static FlutterMethodChannel * FLUTTER_METHOD_CHANNEL;
             [config setValue:@(YES) forKey:OP_ASA_isDev];
         }
     }
-    //第三方广告平台统计代码
+
     NSString *idfaStr;
     if (self.adEnable) {
         if (self.idfaStr.length > 0) {
             idfaStr = self.idfaStr;
-        }else{
+        } else {
             idfaStr = [[[ASIdentifierManager sharedManager] advertisingIdentifier] UUIDString];
         }
         [config setValue:idfaStr forKey:OP_Idfa_Id];
     }
-    
+
     if (!self.ASAEnable && !self.adEnable) {
         [OpenInstallSDK initWithDelegate:self];
-    }else if (!self.ASAEnable && self.adEnable){
+    } else if (!self.ASAEnable && self.adEnable) {
         [OpenInstallSDK initWithDelegate:self advertisingId:idfaStr];
-    }else if (self.ASAEnable && !self.adEnable){
+    } else if (self.ASAEnable && !self.adEnable) {
         [OpenInstallSDK initWithDelegate:self adsAttribution:config];
-    }else if (self.ASAEnable && self.adEnable){
+    } else if (self.ASAEnable && self.adEnable) {
         [OpenInstallSDK initWithDelegate:self adsAttribution:config];
     }
-    
 }
 
-
 #pragma mark - Application Delegate
+
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     return YES;
 }
@@ -279,6 +330,7 @@ static FlutterMethodChannel * FLUTTER_METHOD_CHANNEL;
     [OpeninstallFlutterPlugin handLinkURL:url];
     return NO;
 }
+
 - (BOOL)application:(UIApplication *)application openURL:(NSURL *)url options:(NSDictionary<UIApplicationOpenURLOptionsKey,id> *)options {
     [OpeninstallFlutterPlugin handLinkURL:url];
     return NO;
@@ -286,34 +338,36 @@ static FlutterMethodChannel * FLUTTER_METHOD_CHANNEL;
 
 - (BOOL)application:(UIApplication *)application continueUserActivity:(NSUserActivity *)userActivity
 #if defined(__IPHONE_12_0)
-    restorationHandler:(void (^)(NSArray<id<UIUserActivityRestoring> > * _Nullable restorableObjects))restorationHandler
+                restorationHandler:(void (^)(NSArray<id<UIUserActivityRestoring>> * _Nullable restorableObjects))restorationHandler
 #else
-    restorationHandler:(void (^)(NSArray * _Nullable))restorationHandler
+ restorationHandler:(void (^)(NSArray * _Nullable))restorationHandler
 #endif
 {
     [OpeninstallFlutterPlugin continueUserActivity:userActivity];
     return NO;
 }
 
-+ (void)setUserActivityAndScheme:(NSDictionary *)launchOptions{
++ (void)setUserActivityAndScheme:(NSDictionary *)launchOptions {
     if (launchOptions[UIApplicationLaunchOptionsUserActivityDictionaryKey]) {
         NSDictionary *activityDic = [NSDictionary dictionaryWithDictionary:launchOptions[UIApplicationLaunchOptionsUserActivityDictionaryKey]];
 
-        if ([activityDic[UIApplicationLaunchOptionsUserActivityTypeKey] isEqual: NSUserActivityTypeBrowsingWeb]&&activityDic[@"UIApplicationLaunchOptionsUserActivityKey"]) {
-            NSUserActivity *activity = [[NSUserActivity alloc]initWithActivityType:NSUserActivityTypeBrowsingWeb];
-            activity = (NSUserActivity *)activityDic[@"UIApplicationLaunchOptionsUserActivityKey"];
+        if ([activityDic[UIApplicationLaunchOptionsUserActivityTypeKey] isEqual:NSUserActivityTypeBrowsingWeb] &&
+            activityDic[@"UIApplicationLaunchOptionsUserActivityKey"]) {
+
+            NSUserActivity *activity = (NSUserActivity *)activityDic[@"UIApplicationLaunchOptionsUserActivityKey"];
             [OpeninstallFlutterPlugin continueUserActivity:activity];
         }
-    }else if (launchOptions[UIApplicationLaunchOptionsURLKey]){
-        NSURL *url = [[NSURL alloc]init];
+    } else if (launchOptions[UIApplicationLaunchOptionsURLKey]) {
+        NSURL *url = nil;
         if ([launchOptions[UIApplicationLaunchOptionsURLKey] isKindOfClass:[NSURL class]]) {
             url = launchOptions[UIApplicationLaunchOptionsURLKey];
-        }else if ([launchOptions[UIApplicationLaunchOptionsURLKey] isKindOfClass:[NSString class]]){
+        } else if ([launchOptions[UIApplicationLaunchOptionsURLKey] isKindOfClass:[NSString class]]) {
             url = [NSURL URLWithString:launchOptions[UIApplicationLaunchOptionsURLKey]];
         }
         [OpeninstallFlutterPlugin handLinkURL:url];
     }
 }
 
-
 @end
+
+#endif  // TARGET_OS_SIMULATOR

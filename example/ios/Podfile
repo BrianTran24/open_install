@@ -39,5 +39,13 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    
+    # Fix for iOS simulator support
+    # The libOpenInstallSDK static library only contains arm64 slice for iOS devices (not simulators)
+    # Exclude arm64 for ALL simulators (forces x86_64 architecture)
+    # On Apple Silicon Macs, simulator will run via Rosetta translation
+    target.build_configurations.each do |config|
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+    end
   end
 end

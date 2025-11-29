@@ -121,6 +121,34 @@ Xcode中快速添加：
 
 如果拉起无法获取到参数，可能是因为方法被其它插件覆盖导致（openinstall插件不会覆盖其它插件），可以修改其它插件通用链接delegate回调`..hanldeOpenURL..`方法`return NO;`来解决，可参考OpeninstallFlutterPlugin.m文件相关内容。 
 
+#### iOS 模拟器支持
+
+为了在 iOS 模拟器上运行应用，需要在项目的 `ios/Podfile` 文件中配置架构支持。在 `post_install` 钩子中添加以下代码：
+
+``` ruby
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    
+    # Fix for iOS simulator support
+    # The libOpenInstallSDK static library only contains arm64 slice for iOS devices (not simulators)
+    # Exclude arm64 for ALL simulators (forces x86_64 architecture)
+    # On Apple Silicon Macs, simulator will run via Rosetta translation
+    target.build_configurations.each do |config|
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+    end
+  end
+end
+```
+
+这个配置：
+- 排除 iOS 模拟器的 arm64 架构，因为 libOpenInstallSDK 静态库只包含 iOS 设备的 arm64 架构（不包含模拟器架构）
+- 强制所有模拟器使用 x86_64 架构
+- 允许在 Intel Mac 上原生运行 x86_64 模拟器
+- **注意**：在 Apple Silicon (M1/M2) Mac 上，模拟器将通过 Rosetta 2 以 x86_64 模式运行
+
+配置完成后，执行 `pod install` 即可在模拟器上运行应用。
+
 ## 三、使用
 
 ### 初始化
