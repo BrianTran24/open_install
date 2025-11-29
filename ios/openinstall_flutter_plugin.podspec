@@ -15,10 +15,19 @@ A new flutter plugin project.
   s.source_files = 'Classes/**/*'
   s.public_header_files = 'Classes/**/*.h'
   s.dependency 'Flutter'
-
-  s.dependency 'libOpenInstallSDK'
   s.static_framework = true
-
   s.ios.deployment_target = '8.0'
+
+  # Conditionally include libOpenInstallSDK only for device builds
+  # The Objective-C code uses TARGET_OS_SIMULATOR preprocessor for conditional compilation
+  # This allows building for simulator without the SDK (which lacks simulator architecture slices)
+  # 
+  # To skip OpenInstallSDK for simulator builds, run:
+  #   SKIP_OPENINSTALL_SDK=1 pod install
+  #
+  # Or modify the dependency in your Podfile's pre_install hook
+  unless ENV['SKIP_OPENINSTALL_SDK'] == '1'
+    s.dependency 'libOpenInstallSDK'
+  end
 end
 

@@ -123,7 +123,56 @@ Xcode中快速添加：
 
 #### iOS 模拟器支持
 
-为了在 iOS 模拟器上运行应用，需要在项目的 `ios/Podfile` 文件中配置架构支持。在 `post_install` 钩子中添加以下代码：
+由于 `libOpenInstallSDK` 静态库只包含 iOS 设备架构（不包含模拟器架构），需要特殊配置才能在模拟器上运行。插件的 Objective-C 代码已使用 `TARGET_OS_SIMULATOR` 预处理器宏进行条件编译，在模拟器上运行时会使用桩实现。
+
+##### 方法一：使用环境变量（推荐）
+
+在运行 `pod install` 时设置环境变量来跳过 SDK 依赖：
+
+```bash
+# 在 ios 目录下执行
+cd ios
+SKIP_OPENINSTALL_SDK=1 pod install
+```
+
+或者使用项目根目录的便捷脚本：
+
+```bash
+./run_sim_no_openinstall.sh
+```
+
+##### 方法二：配置 Xcode 预构建脚本（自动检测）
+
+如果你希望 Xcode 自动检测模拟器/真机并运行相应的 pod install，可以配置 Xcode 的 Pre-action：
+
+1. 将 `example/ios/scripts/xcode_pre_build.sh` 脚本复制到你的项目的 `ios/scripts/` 目录下
+2. 打开 Xcode
+3. 前往 Product > Scheme > Edit Scheme
+4. 在左侧边栏选择 "Build"
+5. 点击底部的 "Pre-actions"
+6. 点击 "+" 并选择 "New Run Script Action"
+7. 设置 "Provide build settings from" 为你的 target
+8. 粘贴以下脚本内容：
+
+```bash
+source "${SRCROOT}/scripts/xcode_pre_build.sh"
+```
+
+此脚本会自动检测构建目标（模拟器或真机）并运行适当的 pod install 配置。
+
+##### 方法三：在 Podfile 中永久配置
+
+如果你主要在模拟器上开发，可以在 `ios/Podfile` 文件顶部取消以下注释：
+
+```ruby
+# ENV['SKIP_OPENINSTALL_SDK'] = '1'
+```
+
+**注意：** 使用此方法后，真机构建时需要重新注释该行并运行 `pod install`。
+
+##### 关于架构配置
+
+项目的 Podfile 中已包含以下配置用于处理模拟器架构问题：
 
 ``` ruby
 post_install do |installer|
@@ -142,12 +191,10 @@ end
 ```
 
 这个配置：
-- 排除 iOS 模拟器的 arm64 架构，因为 libOpenInstallSDK 静态库只包含 iOS 设备的 arm64 架构（不包含模拟器架构）
+- 排除 iOS 模拟器的 arm64 架构
 - 强制所有模拟器使用 x86_64 架构
 - 允许在 Intel Mac 上原生运行 x86_64 模拟器
 - **注意**：在 Apple Silicon (M1/M2) Mac 上，模拟器将通过 Rosetta 2 以 x86_64 模式运行
-
-配置完成后，执行 `pod install` 即可在模拟器上运行应用。
 
 ## 三、使用
 

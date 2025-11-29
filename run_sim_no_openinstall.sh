@@ -1,34 +1,34 @@
 #!/usr/bin/env bash
 set -e
 
+# ============================================================================
+# Run iOS Simulator without OpenInstallSDK
+# ============================================================================
+# This script builds and runs the Flutter app on iOS simulator without the
+# libOpenInstallSDK dependency, which doesn't have simulator architecture slices.
+#
+# The script:
+# 1. Sets SKIP_OPENINSTALL_SDK=1 environment variable
+# 2. Runs flutter pub get
+# 3. Runs pod install (which will skip libOpenInstallSDK)
+# 4. Runs the app on iOS simulator
+#
+# The plugin's Objective-C code uses TARGET_OS_SIMULATOR preprocessor for
+# conditional compilation, so stub implementations are used on simulator.
+# ============================================================================
+
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$PROJECT_DIR"
 
-PLUGIN_PODSPEC="plugins/openinstall_flutter_plugin/ios/openinstall_flutter_plugin.podspec"
-BACKUP_PODSPEC="${PLUGIN_PODSPEC}.backup_for_sim"
+# Set environment variable to skip OpenInstallSDK
+export SKIP_OPENINSTALL_SDK=1
 
-restore_podspec() {
-  if [ -f "$BACKUP_PODSPEC" ]; then
-    echo "===> Restoring original openinstall_flutter_plugin.podspec..."
-    mv "$BACKUP_PODSPEC" "$PLUGIN_PODSPEC"
-  fi
-}
-
-trap restore_podspec EXIT
+echo "===> Setting SKIP_OPENINSTALL_SDK=1 for simulator build..."
 
 echo "===> flutter pub get..."
 fvm flutter pub get
 
-if [ -f "$PLUGIN_PODSPEC" ]; then
-  echo "===> Backup podspec..."
-  cp "$PLUGIN_PODSPEC" "$BACKUP_PODSPEC"
-
-  echo "===> Patch podspec to remove libOpenInstallSDK..."
-  sed '/libOpenInstallSDK/d' "$PLUGIN_PODSPEC" > "${PLUGIN_PODSPEC}.tmp"
-  mv "${PLUGIN_PODSPEC}.tmp" "$PLUGIN_PODSPEC"
-fi
-
-echo "===> pod install (without deintegrate)..."
+echo "===> pod install (without libOpenInstallSDK)..."
 cd ios
 pod install
 cd ..
@@ -36,4 +36,4 @@ cd ..
 echo "===> Run on iOS simulator (without OpenInstallSDK)..."
 fvm flutter run -d "iPhone 16 Pro"
 
-echo "Done. Podspec will be restored."
+echo "Done."
