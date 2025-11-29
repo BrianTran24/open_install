@@ -4,6 +4,23 @@ platform :ios, '16.0'
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
+# ============================================================================
+# OpenInstall SDK Configuration for Simulator Builds
+# ============================================================================
+# The libOpenInstallSDK doesn't have simulator architecture slices.
+# To build for simulator, you have two options:
+#
+# Option 1: Set environment variable before pod install
+#   SKIP_OPENINSTALL_SDK=1 pod install
+#
+# Option 2: Uncomment the line below to always skip for simulator development
+# ENV['SKIP_OPENINSTALL_SDK'] = '1'
+#
+# The plugin's Objective-C code uses TARGET_OS_SIMULATOR preprocessor for
+# conditional compilation, so the app will still work on simulator with stub
+# implementations.
+# ============================================================================
+
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
